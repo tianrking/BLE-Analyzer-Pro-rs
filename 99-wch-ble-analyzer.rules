@@ -1,0 +1,13 @@
+# WCH BLE Analyzer Pro - udev rules for non-root access
+#
+# Install:
+#   sudo cp 99-wch-ble-analyzer.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules
+#   sudo udevadm trigger
+#   sudo usermod -aG plugdev "$USER"
+
+SUBSYSTEM=="usb", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="8009", \
+    MODE="0664", GROUP="plugdev", TAG+="uaccess"
+
+SUBSYSTEM=="usb", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="8091", \
+    MODE="0664", GROUP="plugdev", TAG+="uaccess"
