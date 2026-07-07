@@ -157,6 +157,7 @@ pub unsafe extern "C" fn wch_rs_capture_blocking(
         } else {
             Some(ffi_cfg.max_packets)
         },
+        filter_addr: None,
         log_device_init: ffi_cfg.verbose != 0,
     };
 

@@ -15,6 +15,9 @@ hardware on Linux/WSL.
 | Raw BLE LL PDU callback | Complete | Exposed to Rust and C ABI/Python callers. |
 | PCAP output | Complete | Wireshark-compatible BLE LL with pseudo-header, linktype 256. |
 | CLI | Complete | List, capture, pcap output, verbose output, duration, max packets. |
+| Software address filter | Complete | `--filter-addr` limits CLI printing and pcap output to one advertiser. |
+| Target discovery workflow | Complete | `discover` ranks advertisers by type, RSSI strength, packet count, and RSSI delta, then tracks a selected address live. |
+| Advertising data parser | Complete | Extracts local name, manufacturer ID, service UUID, and service-data identifiers from legacy advertising PDUs. |
 | C ABI | Complete | Stable C header and shared library for external callers. |
 | Python wrapper | Complete | `ctypes` wrapper plus live capture example. |
 | CI | Complete | rustfmt, clippy, tests, release build, Python syntax check. |

@@ -8,6 +8,8 @@ WCH USB devices
   -> src/device.rs      enumerate/open/claim MCU interfaces
   -> src/protocol.rs    vendor commands, bulk reads, WCH frame decode
   -> src/packet.rs      typed packet model and formatting
+  -> src/ad.rs          BLE advertising-data parser
+  -> src/discovery.rs   advertiser aggregation and RSSI target workflow
   -> src/capture.rs     multi-MCU capture loop and stop conditions
   -> src/pcap.rs        Wireshark-compatible pcap writer
       -> src/main.rs    CLI
@@ -23,7 +25,9 @@ remain shared.
 ## Design Rules
 
 - Protocol parsing lives in `src/protocol.rs`.
+- BLE advertising payload parsing lives in `src/ad.rs`.
 - Long-running orchestration lives in `src/capture.rs`.
+- Target discovery and RSSI-distance workflow logic lives in `src/discovery.rs`.
 - Output formats do not own USB state.
 - Python never touches raw USB; it calls the Rust ABI.
 - The C ABI owns no borrowed data after a callback returns.

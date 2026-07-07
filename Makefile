@@ -1,8 +1,9 @@
-.PHONY: all fmt lint test build release pycheck check package clean list capture py-live analyze
+.PHONY: all fmt lint test build release pycheck check package clean list capture discover track py-live analyze
 
 PCAP ?= /tmp/ble-analyzer-pro-rs.pcap
 DURATION_MS ?= 3000
 MAX_PACKETS ?= 20
+ADDR ?=
 TARGET ?= $(shell rustc -vV | sed -n 's/^host: //p')
 PACKAGE ?= ble-analyzer-pro-rs-$(TARGET)
 
@@ -41,6 +42,12 @@ list: release
 
 capture: release
 	./target/release/ble-analyzer-pro -v -w $(PCAP) --duration-ms $(DURATION_MS)
+
+discover: release
+	./target/release/ble-analyzer-pro discover --duration-ms $(DURATION_MS)
+
+track: release
+	./target/release/ble-analyzer-pro discover --target $(ADDR) --duration-ms $(DURATION_MS)
 
 py-live: release
 	PYTHONPATH=python python3 examples/python_live.py --duration-ms $(DURATION_MS) --max-packets $(MAX_PACKETS) -w $(PCAP)

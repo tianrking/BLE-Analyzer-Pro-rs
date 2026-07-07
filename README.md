@@ -52,6 +52,8 @@ cleaner long-term Rust stack.
 | BLE advertising capture | Complete | Real hardware tested on channels 37, 38, and 39. |
 | PCAP output | Complete | Wireshark-compatible BLE LL RF pcap, linktype 256. |
 | CLI | Complete | List, capture, verbose output, duration, max-packet stop. |
+| Target discovery | Complete | Rank advertisers by identity fields and RSSI change, then track one target live. |
+| Software address filter | Complete | Capture only one selected advertiser with `--filter-addr`. |
 | Python calls | Complete | `ctypes` wrapper over the native shared library. |
 | C ABI | Complete | Stable header and `cdylib` shared library. |
 | CI | Complete | rustfmt, clippy, tests, release build, Python syntax check. |
@@ -67,6 +69,8 @@ For module boundaries and design notes, see [`docs/ARCHITECTURE.md`](docs/ARCHIT
 src/protocol.rs          USB commands, bulk reads, WCH frame decoder
 src/device.rs            libusb enumeration and interface claim
 src/packet.rs            packet model and formatting helpers
+src/ad.rs                BLE advertising-data parser
+src/discovery.rs         target discovery and RSSI aggregation
 src/pcap.rs              Wireshark-compatible pcap writer
 src/capture.rs           multi-MCU capture orchestration
 src/ffi.rs               C ABI
@@ -222,6 +226,8 @@ make release    # optimized CLI and shared library
 make package    # local tar.gz package for the host Rust target
 make list       # list attached analyzer MCU devices
 make capture    # short verbose capture
+make discover   # rank BLE advertiser candidates
+make track ADDR=AA:BB:CC:DD:EE:FF
 make py-live    # Python ctypes live capture example
 ```
 
@@ -260,12 +266,63 @@ Useful options:
 -w, --write FILE       write Wireshark-compatible pcap
 -p, --phy N            PHY value 1..4, default 1
 -c, --channel N        BLE channel 0..39; 0 means auto 37/38/39 across MCUs
+--filter-addr ADDR     only print/write packets matching one BLE address
 --duration-ms N        stop after N milliseconds
 --max-packets N        stop after N packets
 --quiet-init           suppress USB init logs
 ```
 
 Stop a long capture with `Ctrl+C`.
+
+## Target Discovery SOP
+
+The built-in discovery workflow turns the usual BLE field workflow into one
+command-line loop: scan all advertisers, rank candidates, move the physical
+device near/far, then lock onto the candidate with the strongest RSSI change.
+
+Rank nearby BLE advertisers:
+
+```bash
+./target/release/ble-analyzer-pro discover --duration-ms 15000 --sort rssi-change
+```
+
+Useful sort modes:
+
+```text
+rssi-change    candidates with the biggest near/far RSSI delta first
+strongest      strongest observed RSSI first
+packets        busiest advertisers first
+name           group named devices first
+manufacturer   group by manufacturer data
+kind           group named / manufacturer / service / address-only
+```
+
+The table includes address, type, packet count, last/average/min/max RSSI,
+RSSI delta, local name, manufacturer ID, service fields, and PDU types. Rows
+marked with `*` crossed the significant-change threshold.
+
+Track one selected target while moving it:
+
+```bash
+./target/release/ble-analyzer-pro discover \
+  --target AA:BB:CC:DD:EE:FF \
+  --duration-ms 30000
+```
+
+Capture only that target to pcap:
+
+```bash
+./target/release/ble-analyzer-pro -v \
+  -w ~/captures/target.pcap \
+  --filter-addr AA:BB:CC:DD:EE:FF
+```
+
+This is a software filter. The hardware still receives the full BLE
+advertising stream; the Rust pipeline filters before printing and writing pcap.
+For devices with random BLE addresses, combine RSSI movement with name,
+manufacturer data, service data, and payload changes while operating the device.
+
+More detail: [`docs/TARGET_DISCOVERY.md`](docs/TARGET_DISCOVERY.md).
 
 ## Analyze Captures
 

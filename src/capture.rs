@@ -16,6 +16,7 @@ pub struct CaptureConfig {
     pub pcap_path: Option<PathBuf>,
     pub duration: Option<Duration>,
     pub max_packets: Option<u64>,
+    pub filter_addr: Option<[u8; 6]>,
     pub log_device_init: bool,
 }
 
@@ -27,6 +28,7 @@ impl Default for CaptureConfig {
             pcap_path: None,
             duration: None,
             max_packets: None,
+            filter_addr: None,
             log_device_init: true,
         }
     }
@@ -248,8 +250,10 @@ fn poll_device_once(
     let any_data = !packets.is_empty();
 
     for pkt in packets {
-        let keep_going = process_packet(&pkt, pcap, handler)?;
-        *total_packets += 1;
+        let keep_going = process_packet(&pkt, cfg, pcap, handler)?;
+        if matches_filter(&pkt, cfg.filter_addr) {
+            *total_packets += 1;
+        }
         if !keep_going || stop_after_packet(cfg, *total_packets) {
             return Ok(PacketBatchResult {
                 any_data,
@@ -266,13 +270,25 @@ fn poll_device_once(
 
 fn process_packet(
     pkt: &Packet,
+    cfg: &CaptureConfig,
     pcap: &mut Option<PcapWriter>,
     handler: &mut dyn PacketHandler,
 ) -> Result<bool> {
+    if !matches_filter(pkt, cfg.filter_addr) {
+        return Ok(true);
+    }
+
     if let Some(writer) = pcap.as_mut() {
         writer.write_packet(pkt)?;
     }
     Ok(handler.on_packet(pkt))
+}
+
+fn matches_filter(pkt: &Packet, filter_addr: Option<[u8; 6]>) -> bool {
+    match filter_addr {
+        Some(addr) => pkt.src_addr == addr || pkt.dst_addr == addr,
+        None => true,
+    }
 }
 
 fn stop_after_packet(cfg: &CaptureConfig, total_packets: u64) -> bool {

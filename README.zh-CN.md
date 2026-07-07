@@ -51,6 +51,8 @@
 | BLE 广播抓包 | 已完成 | 真机验证过 37、38、39 三个广播信道。 |
 | PCAP 输出 | 已完成 | Wireshark 可直接打开，BLE LL RF，linktype 256。 |
 | CLI | 已完成 | 支持 list、capture、verbose、duration、max-packets。 |
+| 目标发现 | 已完成 | 按身份字段和 RSSI 变化排序候选，然后实时追踪目标。 |
+| 软件地址过滤 | 已完成 | 通过 `--filter-addr` 只抓一个选定广播设备。 |
 | Python 调用 | 已完成 | 通过 `ctypes` 调用原生 `.so`。 |
 | C ABI | 已完成 | 提供稳定头文件和 shared library。 |
 | CI | 已完成 | rustfmt、clippy、测试、release build、Python 语法检查。 |
@@ -66,6 +68,8 @@
 src/protocol.rs          USB 命令、bulk 读取、WCH 帧解析
 src/device.rs            libusb 枚举、打开设备、claim interface
 src/packet.rs            抓包数据结构和格式化
+src/ad.rs                BLE advertising data 解析
+src/discovery.rs         目标发现和 RSSI 聚合
 src/pcap.rs              Wireshark 兼容 pcap writer
 src/capture.rs           多 MCU 抓包调度
 src/ffi.rs               C ABI
@@ -217,6 +221,8 @@ make release    # 构建优化版 CLI 和 shared library
 make package    # 为当前 Rust host target 生成本地 tar.gz 包
 make list       # 列出已挂载的 analyzer MCU
 make capture    # 短时间 verbose 抓包
+make discover   # 排序 BLE 广播候选设备
+make track ADDR=AA:BB:CC:DD:EE:FF
 make py-live    # Python ctypes 实时抓包示例
 ```
 
@@ -255,12 +261,60 @@ mkdir -p ~/captures
 -w, --write FILE       写出 Wireshark 兼容 pcap
 -p, --phy N            PHY 值 1..4，默认 1
 -c, --channel N        BLE 信道 0..39；0 表示自动分配 37/38/39
+--filter-addr ADDR     只打印/写出匹配某个 BLE 地址的包
 --duration-ms N        N 毫秒后停止
 --max-packets N        N 个包后停止
 --quiet-init           不打印 USB 初始化日志
 ```
 
 长时间抓包按 `Ctrl+C` 停止。
+
+## 目标发现 SOP
+
+内置 `discover` 工作流就是把“全量扫描 -> 找候选 -> 靠近/远离看 RSSI ->
+锁定目标 -> 过滤抓包”做进 CLI。
+
+先给附近广播设备排序：
+
+```bash
+./target/release/ble-analyzer-pro discover --duration-ms 15000 --sort rssi-change
+```
+
+常用排序：
+
+```text
+rssi-change    RSSI 近/远变化最大的候选排前面
+strongest      信号最强的候选排前面
+packets        广播最频繁的候选排前面
+name           按设备名聚合
+manufacturer   按厂商数据聚合
+kind           按 named / manufacturer / service / address-only 分组
+```
+
+表格会显示地址、类型、包数、last/avg/min/max RSSI、RSSI delta、设备名、
+manufacturer ID、service 字段和 PDU 类型。带 `*` 的行表示 RSSI 变化超过阈值。
+
+选中地址后，移动设备并实时观察：
+
+```bash
+./target/release/ble-analyzer-pro discover \
+  --target AA:BB:CC:DD:EE:FF \
+  --duration-ms 30000
+```
+
+只抓这个目标设备：
+
+```bash
+./target/release/ble-analyzer-pro -v \
+  -w ~/captures/target.pcap \
+  --filter-addr AA:BB:CC:DD:EE:FF
+```
+
+这是软件过滤。硬件仍然接收完整 BLE 广播流，Rust 管线会在打印和写 pcap 前过滤。
+如果设备会随机换 BLE 地址，不要只看 MAC，要结合 RSSI 变化、设备名、厂商数据、
+service data，以及操作设备时 payload 是否同步变化。
+
+更多说明见 [`docs/TARGET_DISCOVERY.md`](docs/TARGET_DISCOVERY.md)。
 
 ## 分析 pcap
 
