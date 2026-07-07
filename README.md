@@ -118,7 +118,7 @@ This repo also includes a helper script for the local WSL setup:
 ## Build
 
 ```bash
-cd /home/w0x7ce/BLE-Analyzer-pro-rs
+cd ~/BLE-Analyzer-pro-rs
 cargo build --release
 ```
 
@@ -267,7 +267,9 @@ Use from your own script:
 
 ```python
 import sys
-sys.path.insert(0, "/home/w0x7ce/BLE-Analyzer-pro-rs/python")
+from pathlib import Path
+
+sys.path.insert(0, str(Path.home() / "BLE-Analyzer-pro-rs" / "python"))
 
 from ble_analyzer_pro import BleAnalyzer
 
@@ -375,13 +377,32 @@ If WSL does not show three `1a86:8009` devices, check Windows:
 usbipd list -u
 ```
 
-If state is `Shared (forced)` instead of `Attached`, run:
+If state is `Shared (forced)` instead of `Attached`, the analyzer is shared by
+Windows but not currently attached to WSL. This commonly happens after stopping
+a capture or after the device re-enumerates. Reattach the three MCU devices:
 
 ```powershell
 usbipd attach --wsl Ubuntu-26.04 --busid 3-1
 usbipd attach --wsl Ubuntu-26.04 --busid 3-3
 usbipd attach --wsl Ubuntu-26.04 --busid 3-4
 ```
+
+Then confirm inside WSL:
+
+```bash
+lsusb | grep 1a86
+./target/release/ble-analyzer-pro --list
+```
+
+If you are in the original C repository and see:
+
+```text
+No WCH BLE Analyzer MCUs found (VID 0x1A86 / PID 0x8009).
+```
+
+the same rule applies: first make sure `lsusb` shows the three `1a86:8009`
+devices. The C and Rust tools both use libusb and both need the devices attached
+to WSL.
 
 Permission denied on Linux:
 
