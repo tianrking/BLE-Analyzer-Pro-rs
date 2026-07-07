@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 license = "Unlicense"
 description = "Rust capture core, CLI, C ABI, and Python bindings for WCH BLE Analyzer Pro"
-repository = "https://github.com/xecaz/BLE-Analyzer-pro-linux-capture"
+repository = "https://github.com/tianrking/BLE-Analyzer-Pro-rs"
 
 [lib]
 name = "ble_analyzer_pro"

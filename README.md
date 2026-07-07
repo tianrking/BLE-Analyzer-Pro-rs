@@ -1,56 +1,89 @@
+<div align="center">
+
 # BLE Analyzer Pro RS
 
-Rust capture core, CLI, C ABI, and Python wrapper for the WCH / QinHeng BLE
-Analyzer Pro.
+**A Rust-native Linux capture stack for the WCH / QinHeng BLE Analyzer Pro.**
 
-This is a standalone Rust implementation inspired by the reverse-engineered C
-driver in `xecaz/BLE-Analyzer-pro-linux-capture`. The C project remains the
-protocol reference. This project is intended to be a cleaner base for long-lived
-tooling: a Rust library at the center, a CLI for direct capture, a stable C ABI
-for other languages, and a small Python wrapper for automation and analysis.
+[简体中文](README.zh-CN.md) | English
 
-## Current Status
+[![CI](https://github.com/tianrking/BLE-Analyzer-Pro-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/tianrking/BLE-Analyzer-Pro-rs/actions/workflows/ci.yml)
+[![Rust](https://img.shields.io/badge/Rust-1.95%2B-f74c00?logo=rust&logoColor=white)](https://www.rust-lang.org/)
+[![Python](https://img.shields.io/badge/Python-ctypes-3776AB?logo=python&logoColor=white)](python/ble_analyzer_pro.py)
+[![C ABI](https://img.shields.io/badge/C%20ABI-stable-00599C?logo=c&logoColor=white)](include/ble_analyzer_pro.h)
+[![libusb](https://img.shields.io/badge/libusb-1.0-4B8BBE)](https://libusb.info/)
+[![Wireshark](https://img.shields.io/badge/Wireshark-PCAP-1679A7?logo=wireshark&logoColor=white)](https://www.wireshark.org/)
+[![WSL2](https://img.shields.io/badge/WSL2-usbipd--win-4D4D4D?logo=windows&logoColor=white)](https://github.com/dorssel/usbipd-win)
+[![License](https://img.shields.io/badge/License-Unlicense-lightgrey.svg)](LICENSE)
 
-Working and tested on WSL2 with the WCH BLE Analyzer Pro attached through
-`usbipd-win`.
+![Tags](https://img.shields.io/badge/BLE-advertising-00B894)
+![Tags](https://img.shields.io/badge/Linux-capture-2D3436)
+![Tags](https://img.shields.io/badge/CH582F-reverse--engineered-6C5CE7)
+![Tags](https://img.shields.io/badge/pcap-linktype%20256-0984E3)
+![Tags](https://img.shields.io/badge/Python-automation-FDCB6E)
 
-Implemented:
+</div>
 
-- enumerate the three `VID 1a86 / PID 8009` CH582F MCU devices
-- initialize all three MCUs with the known vendor command sequence
-- assign BLE advertising channels `37 / 38 / 39` across the three MCUs
-- capture BLE advertising packets from bulk endpoint `0x82`
-- decode packet metadata: timestamp, channel, RSSI, PDU type, addresses, raw PDU
-- write Wireshark-compatible pcap using BLE LL with pseudo-header, linktype 256
-- command-line capture tool: `ble-analyzer-pro`
-- C ABI shared library: `libble_analyzer_pro.so`
-- Python `ctypes` wrapper and live capture example
-- CI for formatting, clippy, tests, release build, and Python syntax checks
+## Overview
 
-Experimental / not yet protocol-complete:
+`BLE Analyzer Pro RS` is a standalone Rust implementation for the **WCH BLE
+Analyzer Pro**, a USB BLE advertising sniffer built around three CH582F MCU
+devices behind a WCH USB hub.
 
-- PHY selection is wired into the known config payload, but only the default 1M
-  path has been exercised heavily.
-- MAC filters, LTK/passkey decryption, and custom 2.4 GHz mode are intentionally
-  not advertised as complete. The original C CLI exposes some of these options,
-  but the verified command payload does not yet fully document them.
-- This captures advertising traffic well. It is not a magic "decrypt every BLE
-  connection" tool.
+The project keeps the proven Linux capture path small, typed, and reusable:
 
-For the strict support table, see [`docs/FEATURE_MATRIX.md`](docs/FEATURE_MATRIX.md).
-For module boundaries and design rules, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+- a Rust capture core for USB I/O and packet decoding
+- a CLI for direct captures
+- a Wireshark-compatible pcap writer
+- a stable C ABI for other runtimes
+- a Python `ctypes` wrapper for scripts, dashboards, and analysis tools
+
+The original C driver remains the protocol reference. This project is the
+cleaner long-term Rust stack.
+
+## What Works Today
+
+| Area | Status | Notes |
+| --- | --- | --- |
+| Linux / WSL2 device enumeration | Complete | Finds the three `1a86:8009` MCU devices through libusb. |
+| BLE advertising capture | Complete | Real hardware tested on channels 37, 38, and 39. |
+| PCAP output | Complete | Wireshark-compatible BLE LL RF pcap, linktype 256. |
+| CLI | Complete | List, capture, verbose output, duration, max-packet stop. |
+| Python calls | Complete | `ctypes` wrapper over the native shared library. |
+| C ABI | Complete | Stable header and `cdylib` shared library. |
+| CI | Complete | rustfmt, clippy, tests, release build, Python syntax check. |
+| MAC filter / LTK / 2.4 GHz | Not claimed | Needs verified vendor USB traces before implementation. |
+
+For strict feature status, see [`docs/FEATURE_MATRIX.md`](docs/FEATURE_MATRIX.md).
+For module boundaries and design notes, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+## Repository Layout
+
+```text
+src/protocol.rs          USB commands, bulk reads, WCH frame decoder
+src/device.rs            libusb enumeration and interface claim
+src/packet.rs            packet model and formatting helpers
+src/pcap.rs              Wireshark-compatible pcap writer
+src/capture.rs           multi-MCU capture orchestration
+src/ffi.rs               C ABI
+src/main.rs              CLI
+python/                  Python ctypes wrapper
+examples/                Python live capture and pcap analysis helpers
+include/                 C header
+docs/                    architecture and feature matrix
+scripts/                 local WSL helper scripts
+```
 
 ## Hardware Model
 
-The analyzer appears as a small WCH USB hub and three independent MCU devices.
+The analyzer enumerates as one hub plus three MCU devices.
 
 ```text
-VID:PID    Meaning
+VID:PID    Role
 1a86:8091  WCH CH334 USB hub
 1a86:8009  CH582F BLE analyzer MCU, three devices total
 ```
 
-On Linux/WSL, a healthy attach looks like:
+A healthy Linux/WSL attach looks like this:
 
 ```bash
 lsusb | grep 1a86
@@ -59,9 +92,9 @@ lsusb | grep 1a86
 Expected:
 
 ```text
-Bus 001 Device 005: ID 1a86:8009 QinHeng Electronics ble analyzer
-Bus 001 Device 006: ID 1a86:8009 QinHeng Electronics ble analyzer
-Bus 001 Device 007: ID 1a86:8009 QinHeng Electronics ble analyzer
+Bus 001 Device 032: ID 1a86:8009 QinHeng Electronics ble analyzer
+Bus 001 Device 033: ID 1a86:8009 QinHeng Electronics ble analyzer
+Bus 001 Device 034: ID 1a86:8009 QinHeng Electronics ble analyzer
 ```
 
 ## Requirements
@@ -80,7 +113,7 @@ rustc --version
 cargo --version
 ```
 
-WSL2 USB passthrough on Windows requires `usbipd-win`.
+WSL2 USB passthrough requires `usbipd-win` on Windows.
 
 ## WSL2 USB Attach
 
@@ -90,7 +123,8 @@ On Windows PowerShell:
 usbipd list -u
 ```
 
-If the analyzer is visible but not shared, bind once as Administrator:
+If the three `1a86:8009` MCU devices are visible but not shared, bind them once
+as Administrator:
 
 ```powershell
 usbipd bind --busid 3-1 --force
@@ -98,7 +132,7 @@ usbipd bind --busid 3-3 --force
 usbipd bind --busid 3-4 --force
 ```
 
-Attach whenever WSL loses the devices:
+Attach them to WSL whenever they are not visible from Linux:
 
 ```powershell
 usbipd attach --wsl Ubuntu-26.04 --busid 3-1
@@ -106,10 +140,10 @@ usbipd attach --wsl Ubuntu-26.04 --busid 3-3
 usbipd attach --wsl Ubuntu-26.04 --busid 3-4
 ```
 
-The exact bus IDs can change. Trust `usbipd list -u`; look for three
+The bus IDs can change. Trust `usbipd list -u`; look for the three
 `1a86:8009` devices.
 
-This repo also includes a helper script for the local WSL setup:
+This repository also includes a local helper:
 
 ```powershell
 .\scripts\attach-wsl.ps1
@@ -129,34 +163,32 @@ target/release/ble-analyzer-pro
 target/release/libble_analyzer_pro.so
 ```
 
-Common local development commands:
+Common development commands:
 
 ```bash
-make check      # fmt, clippy, tests, Python syntax check
-make release    # release binary and shared library
+make check      # rustfmt, clippy, tests, Python syntax check
+make release    # optimized CLI and shared library
 make list       # list attached analyzer MCU devices
-make capture    # short verbose capture to /tmp/ble-analyzer-pro-rs.pcap
+make capture    # short verbose capture
 make py-live    # Python ctypes live capture example
 ```
 
-CI runs the same core checks on GitHub Actions.
-
 ## CLI Usage
 
-List attached MCU devices:
+List attached devices:
 
 ```bash
 ./target/release/ble-analyzer-pro --list
 ```
 
-Capture to pcap for Wireshark:
+Capture to pcap:
 
 ```bash
 mkdir -p ~/captures
 ./target/release/ble-analyzer-pro -w ~/captures/ble.pcap
 ```
 
-Capture and print packets live:
+Capture with live packet output:
 
 ```bash
 ./target/release/ble-analyzer-pro -v -w ~/captures/ble.pcap
@@ -167,8 +199,6 @@ Short capture:
 ```bash
 ./target/release/ble-analyzer-pro -v -w /tmp/ble-rs-test.pcap --duration-ms 3000
 ```
-
-Stop a long capture with `Ctrl+C`.
 
 Useful options:
 
@@ -183,7 +213,9 @@ Useful options:
 --quiet-init           suppress USB init logs
 ```
 
-## Analyze Captures With tshark
+Stop a long capture with `Ctrl+C`.
+
+## Analyze Captures
 
 File summary:
 
@@ -191,13 +223,13 @@ File summary:
 capinfos ~/captures/ble.pcap
 ```
 
-Show first packets:
+Show packets:
 
 ```bash
 tshark -r ~/captures/ble.pcap -c 20
 ```
 
-Export useful fields:
+Export useful BLE fields:
 
 ```bash
 tshark -r ~/captures/ble.pcap \
@@ -210,7 +242,7 @@ tshark -r ~/captures/ble.pcap \
   -e btcommon.eir_ad.entry.device_name
 ```
 
-Find named devices:
+Find named BLE devices:
 
 ```bash
 tshark -r ~/captures/ble.pcap \
@@ -221,7 +253,7 @@ tshark -r ~/captures/ble.pcap \
 | sort | uniq -c | sort -nr
 ```
 
-Find the busiest advertisers:
+Find busiest advertisers:
 
 ```bash
 tshark -r ~/captures/ble.pcap \
@@ -243,15 +275,15 @@ tshark -r ~/captures/ble.pcap \
 
 Wireshark notes:
 
-- pcap linktype is `Bluetooth Low Energy Link Layer RF`.
+- PCAP encapsulation is `Bluetooth Low Energy Link Layer RF`.
 - `btle_rf.channel` is the physical RF channel. BLE advertising logical
   channels map as `37 -> 0`, `38 -> 12`, `39 -> 39`.
-- The hardware strips the on-air CRC. The pcap writer emits zero CRC bytes and
-  marks the packet as checksum-inspected/checksum-valid so Wireshark decodes it.
+- The hardware strips the real on-air CRC. The writer emits zero CRC bytes and
+  marks packets checksum-inspected/checksum-valid so Wireshark decodes them.
 
 ## Python Usage
 
-Build the release shared library first:
+Build first:
 
 ```bash
 cargo build --release
@@ -260,7 +292,10 @@ cargo build --release
 Run the live example:
 
 ```bash
-python3 examples/python_live.py --duration-ms 5000 --max-packets 20 -w /tmp/python-capture.pcap
+PYTHONPATH=python python3 examples/python_live.py \
+  --duration-ms 5000 \
+  --max-packets 20 \
+  -w /tmp/python-capture.pcap
 ```
 
 Use from your own script:
@@ -319,49 +354,14 @@ int wch_rs_capture_blocking(const WchRsCaptureConfig *cfg,
                             WchRsCaptureReport *report_out);
 ```
 
-`wch_rs_capture_blocking` can write pcap, call a packet callback, or both.
-The callback receives metadata plus a pointer to the raw BLE LL PDU bytes. The
-PDU pointer is only valid during the callback.
-
-Callback return convention:
+Callback convention:
 
 ```text
-0     continue
-non-0 stop capture
+0       continue
+non-0   stop capture
 ```
 
-## Architecture
-
-```text
-src/protocol.rs   USB command frames, bulk read, WCH frame decoder
-src/device.rs     libusb enumeration and interface claim
-src/packet.rs     decoded packet model and formatting
-src/pcap.rs       Wireshark-compatible pcap writer
-src/capture.rs    multi-MCU capture loop and reports
-src/ffi.rs        stable C ABI for Python/other languages
-src/main.rs       CLI
-python/           ctypes wrapper
-examples/         Python live capture and pcap analysis helpers
-```
-
-The Rust core is deliberately separated from Python. This keeps USB capture and
-packet parsing fast, typed, and safe, while allowing Python to do higher-level
-automation, dashboards, notebooks, and post-processing.
-
-## Why Rust Here?
-
-Rust is a good fit for this project because the hard part is not GUI code; it is
-USB I/O, byte parsing, pcap serialization, long-running capture loops, and a
-stable native boundary for other languages. Rust gives:
-
-- memory-safe packet parsing without losing C-like performance
-- a single core reusable from CLI, ABI, and Python
-- explicit ownership around callback lifetimes and raw packet buffers
-- easy packaging as both binary and shared library
-
-Python is still useful above the Rust core. Use it for experiments, filtering,
-statistics, dashboards, device naming, CSV export, and integration with other
-tools.
+The packet metadata and PDU pointers are valid only during the callback.
 
 ## Troubleshooting
 
@@ -394,15 +394,15 @@ lsusb | grep 1a86
 ./target/release/ble-analyzer-pro --list
 ```
 
-If you are in the original C repository and see:
+If the original C driver says:
 
 ```text
 No WCH BLE Analyzer MCUs found (VID 0x1A86 / PID 0x8009).
 ```
 
 the same rule applies: first make sure `lsusb` shows the three `1a86:8009`
-devices. The C and Rust tools both use libusb and both need the devices attached
-to WSL.
+devices. Both the C and Rust tools use libusb and need the devices attached to
+WSL.
 
 Permission denied on Linux:
 
@@ -415,20 +415,15 @@ sudo usermod -aG plugdev "$USER"
 
 Then log out/in or restart WSL.
 
-PCAP opens but looks odd:
-
-- BLE advertising channels use physical RF channel numbers in Wireshark.
-- Some extended advertising packets may show strict Wireshark warnings depending
-  on payload shape. The raw PDU is still preserved.
-- The analyzer provides validated packets without real on-air CRC bytes.
-
 ## Roadmap
 
-- CI artifact upload and release packaging
-- more unit tests from real captured frame fixtures
-- optional JSON/CSV streaming output
-- PyO3 package as an alternative to `ctypes`
-- protocol research for MAC filters and LTK/passkey handling
-- protocol research for custom 2.4 GHz mode
-- richer examples for identifying Apple, Xiaomi, ESP32, and GATT-related
-  advertising data
+- release packaging and CI artifacts
+- real captured USB frame fixtures for parser tests
+- JSONL and CSV streaming output
+- PyO3 bindings as an optional package layer
+- protocol research for MAC filters, LTK/passkey handling, and custom 2.4 GHz mode
+- reconnect/watchdog support for long capture sessions
+
+## License
+
+Unlicense. See [`LICENSE`](LICENSE).
