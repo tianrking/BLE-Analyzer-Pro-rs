@@ -121,6 +121,29 @@ cargo --version
 
 WSL2 USB passthrough requires `usbipd-win` on Windows.
 
+## Linux USB Permissions
+
+On a native Linux host, install the included udev rules to allow non-root access
+to the WCH MCU devices and hub:
+
+```bash
+sudo cp 99-wch-ble-analyzer.rules /etc/udev/rules.d/
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+sudo groupadd -f plugdev
+sudo usermod -aG plugdev "$USER"
+```
+
+Then unplug/replug the analyzer, log out/in, or restart WSL. The rule covers:
+
+```text
+1a86:8009  WCH BLE Analyzer MCU
+1a86:8091  WCH CH334 hub
+```
+
+This solves Linux device permissions. On WSL2, you still also need USB
+passthrough from Windows with `usbipd-win`.
+
 ## Platform Support
 
 | Platform | Build artifact | Runtime status |
@@ -142,33 +165,39 @@ Release packaging is documented in [`docs/RELEASING.md`](docs/RELEASING.md).
 On Windows PowerShell:
 
 ```powershell
+wsl -l -v
 usbipd list -u
 ```
 
 If the three `1a86:8009` MCU devices are visible but not shared, bind them once
-as Administrator:
+as Administrator. Replace `<BUSID_N>` with the bus IDs shown by
+`usbipd list -u`:
 
 ```powershell
-usbipd bind --busid 3-1 --force
-usbipd bind --busid 3-3 --force
-usbipd bind --busid 3-4 --force
+usbipd bind --busid <BUSID_1> --force
+usbipd bind --busid <BUSID_2> --force
+usbipd bind --busid <BUSID_3> --force
 ```
 
-Attach them to WSL whenever they are not visible from Linux:
+Attach them to WSL whenever they are not visible from Linux. Replace
+`<YourDistro>` with the exact name from `wsl -l -v`, for example `Ubuntu`,
+`Ubuntu-24.04`, or `Ubuntu-26.04`:
 
 ```powershell
-usbipd attach --wsl Ubuntu-26.04 --busid 3-1
-usbipd attach --wsl Ubuntu-26.04 --busid 3-3
-usbipd attach --wsl Ubuntu-26.04 --busid 3-4
+usbipd attach --wsl <YourDistro> --busid <BUSID_1>
+usbipd attach --wsl <YourDistro> --busid <BUSID_2>
+usbipd attach --wsl <YourDistro> --busid <BUSID_3>
 ```
 
 The bus IDs can change. Trust `usbipd list -u`; look for the three
-`1a86:8009` devices.
+`1a86:8009` devices. On this development machine the distro name happened to be
+`Ubuntu-26.04` and the bus IDs happened to be `3-1`, `3-3`, and `3-4`; those are
+examples, not project requirements.
 
 This repository also includes a local helper:
 
 ```powershell
-.\scripts\attach-wsl.ps1
+.\scripts\attach-wsl.ps1 -Distro <YourDistro> -BusIds <BUSID_1>,<BUSID_2>,<BUSID_3>
 ```
 
 ## Build
@@ -405,9 +434,9 @@ Windows but not currently attached to WSL. This commonly happens after stopping
 a capture or after the device re-enumerates. Reattach the three MCU devices:
 
 ```powershell
-usbipd attach --wsl Ubuntu-26.04 --busid 3-1
-usbipd attach --wsl Ubuntu-26.04 --busid 3-3
-usbipd attach --wsl Ubuntu-26.04 --busid 3-4
+usbipd attach --wsl <YourDistro> --busid <BUSID_1>
+usbipd attach --wsl <YourDistro> --busid <BUSID_2>
+usbipd attach --wsl <YourDistro> --busid <BUSID_3>
 ```
 
 Then confirm inside WSL:
@@ -427,12 +456,14 @@ the same rule applies: first make sure `lsusb` shows the three `1a86:8009`
 devices. Both the C and Rust tools use libusb and need the devices attached to
 WSL.
 
-Permission denied on Linux:
+Permission denied on Linux means the USB device is visible but your user cannot
+open it:
 
 ```bash
 sudo cp 99-wch-ble-analyzer.rules /etc/udev/rules.d/
 sudo udevadm control --reload-rules
 sudo udevadm trigger
+sudo groupadd -f plugdev
 sudo usermod -aG plugdev "$USER"
 ```
 

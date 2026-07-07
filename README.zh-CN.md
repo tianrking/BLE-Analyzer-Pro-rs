@@ -120,6 +120,29 @@ cargo --version
 
 WSL2 下使用 USB 设备需要 Windows 侧安装 `usbipd-win`。
 
+## Linux USB 权限
+
+在原生 Linux 主机上，安装仓库自带的 udev 规则后，普通用户就可以访问 WCH
+MCU 设备和 hub：
+
+```bash
+sudo cp 99-wch-ble-analyzer.rules /etc/udev/rules.d/
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+sudo groupadd -f plugdev
+sudo usermod -aG plugdev "$USER"
+```
+
+然后拔插一次设备、重新登录，或者重启 WSL。规则覆盖：
+
+```text
+1a86:8009  WCH BLE Analyzer MCU
+1a86:8091  WCH CH334 hub
+```
+
+这一步解决的是 Linux 内部的设备权限。WSL2 还需要 Windows 侧通过
+`usbipd-win` 把 USB 设备透传进来。
+
 ## 平台支持
 
 | 平台 | 构建产物 | 运行状态 |
@@ -140,31 +163,36 @@ Linux / WSL2，因为 USB 驱动绑定和设备行为都在这个路径上经过
 在 Windows PowerShell 中查看：
 
 ```powershell
+wsl -l -v
 usbipd list -u
 ```
 
-如果三颗 `1a86:8009` 可见但还没共享，管理员 PowerShell 里先 bind 一次：
+如果三颗 `1a86:8009` 可见但还没共享，管理员 PowerShell 里先 bind 一次。
+把 `<BUSID_N>` 换成 `usbipd list -u` 里显示的 busid：
 
 ```powershell
-usbipd bind --busid 3-1 --force
-usbipd bind --busid 3-3 --force
-usbipd bind --busid 3-4 --force
+usbipd bind --busid <BUSID_1> --force
+usbipd bind --busid <BUSID_2> --force
+usbipd bind --busid <BUSID_3> --force
 ```
 
-每次 WSL 里看不到设备时重新 attach：
+每次 WSL 里看不到设备时重新 attach。把 `<YourDistro>` 换成 `wsl -l -v`
+里显示的发行版名字，比如 `Ubuntu`、`Ubuntu-24.04`、`Ubuntu-26.04`：
 
 ```powershell
-usbipd attach --wsl Ubuntu-26.04 --busid 3-1
-usbipd attach --wsl Ubuntu-26.04 --busid 3-3
-usbipd attach --wsl Ubuntu-26.04 --busid 3-4
+usbipd attach --wsl <YourDistro> --busid <BUSID_1>
+usbipd attach --wsl <YourDistro> --busid <BUSID_2>
+usbipd attach --wsl <YourDistro> --busid <BUSID_3>
 ```
 
-busid 可能会变化。以 `usbipd list -u` 为准，找三条 `1a86:8009`。
+busid 可能会变化。以 `usbipd list -u` 为准，找三条 `1a86:8009`。本开发机
+当时的发行版名是 `Ubuntu-26.04`，busid 是 `3-1`、`3-3`、`3-4`；这些只是
+示例，不是项目要求。
 
 本仓库也带了一个本机辅助脚本：
 
 ```powershell
-.\scripts\attach-wsl.ps1
+.\scripts\attach-wsl.ps1 -Distro <YourDistro> -BusIds <BUSID_1>,<BUSID_2>,<BUSID_3>
 ```
 
 ## 构建
@@ -400,9 +428,9 @@ usbipd list -u
 WSL。停止抓包或设备重新枚举后经常会出现这个状态，重新 attach 即可：
 
 ```powershell
-usbipd attach --wsl Ubuntu-26.04 --busid 3-1
-usbipd attach --wsl Ubuntu-26.04 --busid 3-3
-usbipd attach --wsl Ubuntu-26.04 --busid 3-4
+usbipd attach --wsl <YourDistro> --busid <BUSID_1>
+usbipd attach --wsl <YourDistro> --busid <BUSID_2>
+usbipd attach --wsl <YourDistro> --busid <BUSID_3>
 ```
 
 然后在 WSL 里确认：
@@ -421,12 +449,13 @@ No WCH BLE Analyzer MCUs found (VID 0x1A86 / PID 0x8009).
 处理方式一样：先确认 `lsusb` 能看到三颗 `1a86:8009`。C 版和 Rust 版都走
 libusb，都要求设备已经 attach 到 WSL。
 
-Linux 权限不足：
+Linux 下权限不足，表示 USB 设备已经可见，但当前用户没有权限打开：
 
 ```bash
 sudo cp 99-wch-ble-analyzer.rules /etc/udev/rules.d/
 sudo udevadm control --reload-rules
 sudo udevadm trigger
+sudo groupadd -f plugdev
 sudo usermod -aG plugdev "$USER"
 ```
 

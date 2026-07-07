@@ -4,6 +4,7 @@
 #   sudo cp 99-wch-ble-analyzer.rules /etc/udev/rules.d/
 #   sudo udevadm control --reload-rules
 #   sudo udevadm trigger
+#   sudo groupadd -f plugdev
 #   sudo usermod -aG plugdev "$USER"
 
 SUBSYSTEM=="usb", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="8009", \
