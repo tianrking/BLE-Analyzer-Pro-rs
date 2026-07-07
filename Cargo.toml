@@ -1,0 +1,20 @@
+[package]
+name = "ble-analyzer-pro-rs"
+version = "0.1.0"
+edition = "2021"
+license = "Unlicense"
+description = "Rust capture core, CLI, C ABI, and Python bindings for WCH BLE Analyzer Pro"
+repository = "https://github.com/xecaz/BLE-Analyzer-pro-linux-capture"
+
+[lib]
+name = "ble_analyzer_pro"
+crate-type = ["rlib", "cdylib"]
+
+[[bin]]
+name = "ble-analyzer-pro"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.5", features = ["derive"] }
+ctrlc = "3.5"
+rusb = "0.9"

@@ -1,0 +1,9 @@
+/target/
+*.pcap
+*.pcapng
+*.log
+__pycache__/
+*.py[cod]
+.venv/
+.idea/
+.vscode/
