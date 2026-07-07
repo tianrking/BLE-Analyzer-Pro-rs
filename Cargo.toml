@@ -4,7 +4,11 @@ version = "0.1.0"
 edition = "2021"
 license = "Unlicense"
 description = "Rust capture core, CLI, C ABI, and Python bindings for WCH BLE Analyzer Pro"
+authors = ["tianrking"]
 repository = "https://github.com/tianrking/BLE-Analyzer-Pro-rs"
+readme = "README.md"
+keywords = ["ble", "libusb", "pcap", "sniffer", "wireshark"]
+categories = ["command-line-utilities", "hardware-support"]
 
 [lib]
 name = "ble_analyzer_pro"

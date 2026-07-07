@@ -2,11 +2,12 @@
 
 # BLE Analyzer Pro RS
 
-**A Rust-native Linux capture stack for the WCH / QinHeng BLE Analyzer Pro.**
+**A Rust-native capture stack for the WCH / QinHeng BLE Analyzer Pro.**
 
 [简体中文](README.zh-CN.md) | English
 
 [![CI](https://github.com/tianrking/BLE-Analyzer-Pro-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/tianrking/BLE-Analyzer-Pro-rs/actions/workflows/ci.yml)
+[![Release Binaries](https://github.com/tianrking/BLE-Analyzer-Pro-rs/actions/workflows/release.yml/badge.svg)](https://github.com/tianrking/BLE-Analyzer-Pro-rs/actions/workflows/release.yml)
 [![Rust](https://img.shields.io/badge/Rust-1.95%2B-f74c00?logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![Python](https://img.shields.io/badge/Python-ctypes-3776AB?logo=python&logoColor=white)](python/ble_analyzer_pro.py)
 [![C ABI](https://img.shields.io/badge/C%20ABI-stable-00599C?logo=c&logoColor=white)](include/ble_analyzer_pro.h)
@@ -20,6 +21,9 @@
 ![Tags](https://img.shields.io/badge/CH582F-reverse--engineered-6C5CE7)
 ![Tags](https://img.shields.io/badge/pcap-linktype%20256-0984E3)
 ![Tags](https://img.shields.io/badge/Python-automation-FDCB6E)
+![Tags](https://img.shields.io/badge/Linux-x86__64%20%7C%20arm64-00A86B)
+![Tags](https://img.shields.io/badge/macOS-Intel%20%7C%20Apple%20Silicon-111111?logo=apple&logoColor=white)
+![Tags](https://img.shields.io/badge/Windows-x86__64-0078D4?logo=windows&logoColor=white)
 
 </div>
 
@@ -51,6 +55,7 @@ cleaner long-term Rust stack.
 | Python calls | Complete | `ctypes` wrapper over the native shared library. |
 | C ABI | Complete | Stable header and `cdylib` shared library. |
 | CI | Complete | rustfmt, clippy, tests, release build, Python syntax check. |
+| Release artifacts | Complete | Linux x86_64, Linux arm64, macOS Intel, macOS Apple Silicon, Windows x86_64. |
 | MAC filter / LTK / 2.4 GHz | Not claimed | Needs verified vendor USB traces before implementation. |
 
 For strict feature status, see [`docs/FEATURE_MATRIX.md`](docs/FEATURE_MATRIX.md).
@@ -71,6 +76,7 @@ examples/                Python live capture and pcap analysis helpers
 include/                 C header
 docs/                    architecture and feature matrix
 scripts/                 local WSL helper scripts
+.github/workflows/       CI and release binary automation
 ```
 
 ## Hardware Model
@@ -114,6 +120,22 @@ cargo --version
 ```
 
 WSL2 USB passthrough requires `usbipd-win` on Windows.
+
+## Platform Support
+
+| Platform | Build artifact | Runtime status |
+| --- | --- | --- |
+| Linux x86_64 | `ble-analyzer-pro-rs-linux-x86_64.tar.gz` | Hardware capture verified on WSL2/Linux. |
+| Linux arm64 | `ble-analyzer-pro-rs-linux-aarch64.tar.gz` | Expected to work with libusb; needs target-device smoke testing. |
+| macOS Intel | `ble-analyzer-pro-rs-macos-x86_64.tar.gz` | Builds for integration; hardware capture not yet claimed. |
+| macOS Apple Silicon | `ble-analyzer-pro-rs-macos-aarch64.tar.gz` | Builds for integration; hardware capture not yet claimed. |
+| Windows x86_64 | `ble-analyzer-pro-rs-windows-x86_64.zip` | Builds with vcpkg libusb; direct USB capture needs driver validation. |
+
+The project is designed to be portable at the Rust core and ABI layers. The
+verified production path today is still Linux/WSL2 because USB driver binding
+and analyzer behavior have been tested there with real hardware.
+
+Release packaging is documented in [`docs/RELEASING.md`](docs/RELEASING.md).
 
 ## WSL2 USB Attach
 
@@ -168,6 +190,7 @@ Common development commands:
 ```bash
 make check      # rustfmt, clippy, tests, Python syntax check
 make release    # optimized CLI and shared library
+make package    # local tar.gz package for the host Rust target
 make list       # list attached analyzer MCU devices
 make capture    # short verbose capture
 make py-live    # Python ctypes live capture example

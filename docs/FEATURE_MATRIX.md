@@ -18,9 +18,11 @@ hardware on Linux/WSL.
 | C ABI | Complete | Stable C header and shared library for external callers. |
 | Python wrapper | Complete | `ctypes` wrapper plus live capture example. |
 | CI | Complete | rustfmt, clippy, tests, release build, Python syntax check. |
+| Release packaging | Complete | Builds archives for Linux x86_64, Linux arm64, macOS Intel, macOS Apple Silicon, and Windows x86_64. |
 | Unit tests | Partial | Decoder and channel mapping covered. More real fixtures should be added. |
 | PHY 1M | Complete | Default path used in smoke tests. |
 | PHY 2M / Coded | Experimental | Command field exists, but needs real capture validation. |
+| macOS / Windows runtime capture | Build-only | CI produces binaries, but hardware capture behavior still needs driver-level validation. |
 | MAC filter | Not implemented | Need USB command evidence from vendor app before implementing. |
 | LTK/passkey decryption | Not implemented | Need protocol evidence and pairing/session model. |
 | Custom 2.4 GHz mode | Not implemented | Need USB command evidence from vendor app. |

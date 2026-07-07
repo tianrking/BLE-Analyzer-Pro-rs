@@ -2,12 +2,24 @@ name: CI
 
 on:
   push:
+    branches:
+      - main
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  rust:
-    name: Rust and Python checks
+  checks:
+    name: Rust, Python, and package checks
     runs-on: ubuntu-latest
+    env:
+      CARGO_TERM_COLOR: always
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,13 +36,16 @@ jobs:
         run: cargo fmt --check
 
       - name: Lint
-        run: cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --all-targets --locked -- -D warnings
 
       - name: Test
-        run: cargo test --all-targets
+        run: cargo test --all-targets --locked
 
       - name: Build release artifacts
-        run: cargo build --release
+        run: cargo build --release --locked
 
       - name: Python syntax check
         run: python3 -m py_compile python/ble_analyzer_pro.py examples/python_live.py examples/analyze_pcap.py
+
+      - name: Smoke test CLI
+        run: ./target/release/ble-analyzer-pro --version

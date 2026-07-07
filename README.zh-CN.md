@@ -2,11 +2,12 @@
 
 # BLE Analyzer Pro RS
 
-**面向 WCH / 沁恒 BLE Analyzer Pro 的 Rust 原生 Linux 抓包栈。**
+**面向 WCH / 沁恒 BLE Analyzer Pro 的 Rust 原生抓包栈。**
 
 简体中文 | [English](README.md)
 
 [![CI](https://github.com/tianrking/BLE-Analyzer-Pro-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/tianrking/BLE-Analyzer-Pro-rs/actions/workflows/ci.yml)
+[![Release Binaries](https://github.com/tianrking/BLE-Analyzer-Pro-rs/actions/workflows/release.yml/badge.svg)](https://github.com/tianrking/BLE-Analyzer-Pro-rs/actions/workflows/release.yml)
 [![Rust](https://img.shields.io/badge/Rust-1.95%2B-f74c00?logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![Python](https://img.shields.io/badge/Python-ctypes-3776AB?logo=python&logoColor=white)](python/ble_analyzer_pro.py)
 [![C ABI](https://img.shields.io/badge/C%20ABI-stable-00599C?logo=c&logoColor=white)](include/ble_analyzer_pro.h)
@@ -20,6 +21,9 @@
 ![标签](https://img.shields.io/badge/CH582F-逆向协议-6C5CE7)
 ![标签](https://img.shields.io/badge/pcap-linktype%20256-0984E3)
 ![标签](https://img.shields.io/badge/Python-自动化-FDCB6E)
+![标签](https://img.shields.io/badge/Linux-x86__64%20%7C%20arm64-00A86B)
+![标签](https://img.shields.io/badge/macOS-Intel%20%7C%20Apple%20Silicon-111111?logo=apple&logoColor=white)
+![标签](https://img.shields.io/badge/Windows-x86__64-0078D4?logo=windows&logoColor=white)
 
 </div>
 
@@ -50,6 +54,7 @@
 | Python 调用 | 已完成 | 通过 `ctypes` 调用原生 `.so`。 |
 | C ABI | 已完成 | 提供稳定头文件和 shared library。 |
 | CI | 已完成 | rustfmt、clippy、测试、release build、Python 语法检查。 |
+| Release 产物 | 已完成 | Linux x86_64、Linux arm64、macOS Intel、macOS Apple Silicon、Windows x86_64。 |
 | MAC filter / LTK / 2.4G | 不宣称完成 | 需要先拿到可靠的厂商 USB trace，不能靠猜。 |
 
 严格功能表见 [`docs/FEATURE_MATRIX.md`](docs/FEATURE_MATRIX.md)。
@@ -70,6 +75,7 @@ examples/                Python 实时抓包和 pcap 分析示例
 include/                 C 头文件
 docs/                    架构与功能矩阵
 scripts/                 本地 WSL 辅助脚本
+.github/workflows/       CI 和多平台 release binary 自动化
 ```
 
 ## 硬件模型
@@ -113,6 +119,21 @@ cargo --version
 ```
 
 WSL2 下使用 USB 设备需要 Windows 侧安装 `usbipd-win`。
+
+## 平台支持
+
+| 平台 | 构建产物 | 运行状态 |
+| --- | --- | --- |
+| Linux x86_64 | `ble-analyzer-pro-rs-linux-x86_64.tar.gz` | 已在 WSL2/Linux 真机抓包验证。 |
+| Linux arm64 | `ble-analyzer-pro-rs-linux-aarch64.tar.gz` | 预期可用，需要目标设备 smoke test。 |
+| macOS Intel | `ble-analyzer-pro-rs-macos-x86_64.tar.gz` | 可构建，用于集成；暂不宣称真机抓包已验证。 |
+| macOS Apple Silicon | `ble-analyzer-pro-rs-macos-aarch64.tar.gz` | 可构建，用于集成；暂不宣称真机抓包已验证。 |
+| Windows x86_64 | `ble-analyzer-pro-rs-windows-x86_64.zip` | 通过 vcpkg libusb 构建；直接 USB 抓包还需要驱动验证。 |
+
+项目的 Rust 内核和 ABI 层按跨平台设计；当前已经可靠验证的生产路径仍然是
+Linux / WSL2，因为 USB 驱动绑定和设备行为都在这个路径上经过真机测试。
+
+发布流程见 [`docs/RELEASING.md`](docs/RELEASING.md)。
 
 ## WSL2 USB 挂载
 
@@ -165,6 +186,7 @@ target/release/libble_analyzer_pro.so
 ```bash
 make check      # rustfmt、clippy、测试、Python 语法检查
 make release    # 构建优化版 CLI 和 shared library
+make package    # 为当前 Rust host target 生成本地 tar.gz 包
 make list       # 列出已挂载的 analyzer MCU
 make capture    # 短时间 verbose 抓包
 make py-live    # Python ctypes 实时抓包示例

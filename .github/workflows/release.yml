@@ -1,0 +1,130 @@
+name: Release Binaries
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  package:
+    name: Package ${{ matrix.package }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: ble-analyzer-pro-rs-linux-x86_64
+            runner: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            os: linux
+          - package: ble-analyzer-pro-rs-linux-aarch64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            os: linux
+          - package: ble-analyzer-pro-rs-macos-x86_64
+            runner: macos-15-intel
+            target: x86_64-apple-darwin
+            os: macos
+          - package: ble-analyzer-pro-rs-macos-aarch64
+            runner: macos-latest
+            target: aarch64-apple-darwin
+            os: macos
+          - package: ble-analyzer-pro-rs-windows-x86_64
+            runner: windows-latest
+            target: x86_64-pc-windows-msvc
+            os: windows
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add ${{ matrix.target }}
+
+      - name: Install Linux dependencies
+        if: matrix.os == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libusb-1.0-0-dev pkg-config python3
+
+      - name: Install macOS dependencies
+        if: matrix.os == 'macos'
+        run: brew install libusb pkg-config
+
+      - name: Install Windows dependencies
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          $vcpkgRoot = $env:VCPKG_INSTALLATION_ROOT
+          if (-not $vcpkgRoot) {
+            $vcpkgRoot = "C:\vcpkg"
+          }
+          vcpkg install libusb:x64-windows
+          "VCPKG_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "VCPKGRS_DYNAMIC=1" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Build release binary
+        run: cargo build --release --locked --target ${{ matrix.target }}
+
+      - name: Smoke test CLI
+        if: matrix.os != 'windows'
+        run: ./target/${{ matrix.target }}/release/ble-analyzer-pro --version
+
+      - name: Smoke test CLI
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: .\target\${{ matrix.target }}\release\ble-analyzer-pro.exe --version
+
+      - name: Package Unix artifact
+        if: matrix.os != 'windows'
+        run: scripts/package-release.sh ${{ matrix.target }} ${{ matrix.package }}
+
+      - name: Package Windows artifact
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: .\scripts\package-release.ps1 -Target ${{ matrix.target }} -PackageName ${{ matrix.package }}
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.package }}
+          path: dist/${{ matrix.package }}.*
+          if-no-files-found: error
+
+  release:
+    name: Attach packages to GitHub Release
+    needs: package
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download package artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-dist
+          merge-multiple: true
+
+      - name: Publish release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          notes="Automated multi-platform binary build for ${tag}."
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" release-dist/* --clobber
+          else
+            gh release create "$tag" release-dist/* --title "$tag" --notes "$notes"
+          fi

@@ -15,6 +15,11 @@ WCH USB devices
           -> python/    ctypes wrapper
 ```
 
+Release automation packages the same CLI, C ABI library, header, Python wrapper,
+examples, and docs for each supported build target. Platform-specific USB
+behavior stays below the `rusb` boundary; protocol parsing and packet output
+remain shared.
+
 ## Design Rules
 
 - Protocol parsing lives in `src/protocol.rs`.
@@ -98,5 +103,7 @@ The code is ready for:
 - packet fixture tests using captured USB frames
 - a reconnect/watchdog layer around `run_capture`
 - PyO3 bindings that call the existing Rust API
+- signed/notarized platform packages once macOS and Windows runtime capture are
+  validated
 - protocol-specific modules once MAC filters, LTK/passkey, and 2.4 GHz mode are
   proven from USB traces

@@ -1,9 +1,38 @@
+# Rust build output
 /target/
+/dist/
+**/*.rs.bk
+
+# Local capture and analysis output
 *.pcap
 *.pcapng
 *.log
+captures/
+
+# Release packages generated locally
+*.tar.gz
+*.zip
+*.sha256
+
+# Python local state
 __pycache__/
 *.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 .venv/
+venv/
+
+# Native binaries and shared libraries produced outside target/
+*.dll
+*.dylib
+*.exe
+*.so
+
+# Editor and OS files
 .idea/
 .vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
